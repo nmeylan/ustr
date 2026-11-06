@@ -206,7 +206,13 @@
 //! synchronization and allocation.
 //!
 //! ## Features
-#![doc = document_features::document_features!()]
+//!
+//! * **`cache_access`** - Enables several functions that allow interaction
+//!   with the global string cache.
+//! * **`serde`** - Enables `serde` serializing/deserializing the global string
+//!   cache.
+//! * **`facet`** - Enables `facet` reflection support for `Ustr`.
+//! * **`rkyv`** - Enables `rkyv` archiving support for `Ustr`.
 
 use parking_lot::Mutex;
 use std::{
@@ -882,9 +888,7 @@ macro_rules! static_ustr {
 }
 
 #[cfg(test)]
-lazy_static::lazy_static! {
-    static ref TEST_LOCK: Mutex<()> = Mutex::new(());
-}
+static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[cfg(test)]
 mod tests {
@@ -1310,36 +1314,9 @@ mod tests {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref STRING_CACHE: Bins = {
-        use std::mem::{self, MaybeUninit};
-        // This deeply unsafe feeling dance allows us to initialize an array of
-        // arbitrary size and will have to tide us over until const generics
-        // land. See:
-        // https://doc.rust-lang.org/beta/std/mem/union.MaybeUninit.html#initializing-an-array-element-by-element
-
-        // Create an uninitialized array of `MaybeUninit`. The `assume_init` is
-        // safe because the type we are claiming to have initialized here is a
-        // bunch of `MaybeUninit`s, which do not require initialization.
-        let mut bins: [MaybeUninit<Mutex<StringCache>>; NUM_BINS] = unsafe {
-            MaybeUninit::uninit().assume_init()
-        };
-
-        // Dropping a `MaybeUninit` does nothing. Thus using raw pointer
-        // assignment instead of `ptr::write` does not cause the old
-        // uninitialized value to be dropped. Also if there is a panic during
-        // this loop, we have a memory leak, but there is no memory safety
-        // issue.
-        for bin in &mut bins[..] {
-            *bin = MaybeUninit::new(Mutex::new(StringCache::default()));
-        }
-
-        // Everything is initialized. Transmute the array to the
-        // initialized type.
-        #[allow(clippy::missing_transmute_annotations)]
-        Bins(unsafe { mem::transmute::<_, [Mutex<StringCache>; NUM_BINS]>(bins) })
-    };
-}
+static STRING_CACHE: std::sync::LazyLock<Bins> = std::sync::LazyLock::new(|| {
+    Bins(std::array::from_fn(|_| Mutex::new(StringCache::default())))
+});
 
 // Use the top bits of the hash to choose a bin
 #[inline]

@@ -1,5 +1,4 @@
 use super::Ustr;
-use byteorder::{ByteOrder, NativeEndian};
 use std::{
     collections::{HashMap, HashSet},
     hash::{BuildHasherDefault, Hasher},
@@ -104,7 +103,7 @@ impl Hasher for IdentityHasher {
     fn write(&mut self, bytes: &[u8]) {
         match bytes.len() {
             8 => {
-                self.hash = NativeEndian::read_u64(bytes);
+                self.hash = u64::from_ne_bytes(bytes.try_into().unwrap());
             }
             0 => {}
             _ => panic!(

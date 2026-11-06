@@ -1,6 +1,7 @@
 # Codebase Audit Report
 
 ## Latest Updates
+- Fewer dependencies: `byteorder`, `lazy_static` and `document-features` are no longer needed.
 - Removed unused const-interning scaffolding and duplicate macros; contributor guide refreshed.
 - Bumpalo-backed allocator now reports capacity/usage from bumpalo and relies on bumpalo’s growth strategy.
 - `IdentityHasher` panics on unsupported writes and exposes `write_u64`/`write_usize`.

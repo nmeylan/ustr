@@ -25,7 +25,7 @@ use super::bumpalloc::LeakyBumpAlloc;
 // holding the lock is undefined.
 //
 // Thread safety is ensured because we can only access the `StringCache` through
-// the spinlock in the `lazy_static` ref. The initial capacity of the cache is
+// the spinlock in the `STRING_CACHE` static. The initial capacity of the cache is
 // divided evenly among a number of 'bins' or shards each with their own lock,
 // in order to reduce contention.
 #[repr(align(128))]
