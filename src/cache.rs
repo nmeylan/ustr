@@ -116,7 +116,20 @@ pub fn string_cache_iter() -> StringCacheIterator {
     for m in STRING_CACHE.0.iter() {
         let sc = m.lock();
         // Collect all strings from this cache shard
-        all_strings.extend_from_slice(&sc.all_strings);
+        for &e in sc.entries.iter() {
+            if e.is_null() {
+                continue;
+            }
+            // SAFETY: a non-null entry points to a `StringCacheEntry` header
+            // followed by `len` bytes copied from a valid `str`. The bump
+            // allocators never free this memory.
+            all_strings.push(unsafe {
+                std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+                    e.add(1) as *const u8,
+                    (*e).len,
+                ))
+            });
+        }
     }
 
     StringCacheIterator {

@@ -1245,6 +1245,7 @@ mod tests {
 
     #[test]
     fn test_empty_cache() {
+        let _t = TEST_LOCK.lock();
         unsafe { super::_clear_cache() };
         assert_eq!(
             super::string_cache_iter().collect::<Vec<_>>(),
@@ -1284,6 +1285,33 @@ mod tests {
         assert!(found_set.contains("hello"));
         assert!(found_set.contains("world"));
         assert!(found_set.contains("test"));
+    }
+
+    #[test]
+    fn iterator_after_growth() {
+        let _t = TEST_LOCK.lock();
+        use super::{string_cache_iter, ustr as u};
+        use std::collections::HashSet;
+
+        // Enough strings to grow the table of every bin.
+        #[cfg(not(miri))]
+        const N: usize = 600_000;
+        #[cfg(miri)]
+        const N: usize = 2_000;
+
+        unsafe { super::_clear_cache() };
+
+        let expected: HashSet<String> =
+            (0..N).map(|i| format!("K{i}")).collect();
+        for s in &expected {
+            u(s);
+        }
+
+        let found: Vec<&str> = string_cache_iter().collect();
+        assert_eq!(super::num_entries(), N);
+        assert_eq!(found.len(), N);
+        let found: HashSet<&str> = found.into_iter().collect();
+        assert!(expected.iter().all(|s| found.contains(s.as_str())));
     }
 
     #[test]

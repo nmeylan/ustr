@@ -32,11 +32,9 @@ use super::bumpalloc::LeakyBumpAlloc;
 pub(crate) struct StringCache {
     pub(crate) alloc: LeakyBumpAlloc,
     pub(crate) old_allocs: Vec<LeakyBumpAlloc>,
-    entries: Vec<*mut StringCacheEntry>,
+    pub(crate) entries: Vec<*mut StringCacheEntry>,
     num_entries: usize,
     mask: usize,
-    // Keep track of all allocated strings for iteration
-    pub(crate) all_strings: Vec<&'static str>,
     // Padding and aligning to 128 bytes gives up to 20% performance
     // improvement this actually aligns to 256 bytes because of the Mutex
     // around it.
@@ -45,7 +43,11 @@ pub(crate) struct StringCache {
 
 // TODO: make these configurable?
 // Initial size of the StringCache table
+#[cfg(not(miri))]
 pub(crate) const INITIAL_CAPACITY: usize = 1 << 20;
+// Small under Miri so that the tests exercise table growth.
+#[cfg(miri)]
+pub(crate) const INITIAL_CAPACITY: usize = 1 << 10;
 // Initial size of the allocator storage (in bytes)
 pub(crate) const INITIAL_ALLOC: usize = 4 << 20;
 // Number of bins (shards) for map
@@ -74,7 +76,6 @@ impl StringCache {
             entries: vec![std::ptr::null_mut(); capacity],
             num_entries: 0,
             mask: capacity - 1,
-            all_strings: Vec::new(),
             _pad: [0u32; 3],
         }
     }
@@ -232,13 +233,6 @@ impl StringCache {
 
             self.num_entries += 1;
 
-            // Track the string for iteration
-            let s = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-                char_ptr,
-                string.len(),
-            ));
-            self.all_strings.push(s);
-
             // We want to keep an 0.5 load factor for the map, so grow if we've
             // exceeded that.
             if self.num_entries * 2 > self.mask {
@@ -305,7 +299,6 @@ impl StringCache {
             // just zero all the pointers that have already been set
             std::ptr::write_bytes(self.entries.as_mut_ptr(), 0, self.mask + 1);
             self.num_entries = 0;
-            self.all_strings.clear();
             for a in self.old_allocs.iter_mut() {
                 a.clear();
             }
