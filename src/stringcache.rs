@@ -233,9 +233,9 @@ impl StringCache {
 
             self.num_entries += 1;
 
-            // We want to keep an 0.5 load factor for the map, so grow if we've
-            // exceeded that.
-            if self.num_entries * 2 > self.mask {
+            // We want to keep an 0.75 load factor for the map, so grow if
+            // we've exceeded that.
+            if self.num_entries * 4 > self.mask * 3 {
                 self.grow();
             }
 

@@ -1315,6 +1315,32 @@ mod tests {
     }
 
     #[test]
+    fn pointers_stable_across_resize() {
+        let _t = TEST_LOCK.lock();
+        use super::{existing_ustr, ustr as u};
+
+        // Enough strings to resize the table of every bin.
+        #[cfg(not(miri))]
+        const N: usize = 600_000;
+        #[cfg(miri)]
+        const N: usize = 2_000;
+
+        unsafe { super::_clear_cache() };
+
+        let strings: Vec<String> = (0..N).map(|i| format!("P{i}")).collect();
+        let ustrs: Vec<_> = strings.iter().map(|s| u(s)).collect();
+
+        for (s, us) in strings.iter().zip(&ustrs) {
+            assert_eq!(u(s).as_char_ptr(), us.as_char_ptr());
+            assert_eq!(
+                existing_ustr(s).map(|e| e.as_char_ptr()),
+                Some(us.as_char_ptr())
+            );
+        }
+        assert_eq!(existing_ustr("never interned"), None);
+    }
+
+    #[test]
     fn as_refs() {
         let _t = TEST_LOCK.lock();
 

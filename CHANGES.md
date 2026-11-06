@@ -1,6 +1,7 @@
 # Codebase Audit Report
 
 ## Latest Updates
+- Lower memory use: the string cache table now grows later, so it needs fewer slots for the same strings.
 - Lower memory use: the string cache no longer keeps a second list of every interned string.
 - Fewer dependencies: `byteorder`, `lazy_static` and `document-features` are no longer needed.
 - Removed unused const-interning scaffolding and duplicate macros; contributor guide refreshed.
